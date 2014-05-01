@@ -26,9 +26,10 @@ public class WaveBullet
 
 	public double getBulletSpeed()
 	{
-		return 20 - power * 3;
+		return (20 - (power * 3));
 	}
 
+	
 	public double maxEscapeAngle()
 	{
 		return Math.asin(8 / getBulletSpeed());
