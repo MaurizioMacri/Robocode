@@ -12,16 +12,28 @@ class Enemy {
 	private long ctime; 		//game time that the scan was produced
 	private boolean live; 	//is the enemy alive?
 	
+	
+	//Given velocity, initial velocity and time calculate the acceleration.
+	//a = (v - v0)/t
+	public static double returnAcceleration(double oldVelocity, double currVelocity, double deltaTime){
+		return (currVelocity-oldVelocity)/deltaTime;
+	}
+	
+	
+	
+
+	
+	
+
+	public String getName() {
+		return name;
+	}
 	public Point2D.Double guessPosition(long when) {
 		double diff = when - ctime;
 		double newY = y + Math.cos(heading) * speed * diff;
 		double newX = x + Math.sin(heading) * speed * diff;
 		
 		return new Point2D.Double(newX, newY);
-	}
-
-	public String getName() {
-		return name;
 	}
 
 	public void setName(String name) {

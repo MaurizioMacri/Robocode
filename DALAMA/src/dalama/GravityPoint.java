@@ -3,6 +3,7 @@ package dalama;
 /**Holds the x, y, and strength info of a gravity point**/
 class GravityPoint {
     private double x,y,power;
+    
     public GravityPoint(double pX,double pY,double pPower) {
         x = pX;
         y = pY;
