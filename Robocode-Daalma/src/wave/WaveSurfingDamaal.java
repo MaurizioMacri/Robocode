@@ -19,17 +19,18 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 
 	private Point2D.Double enemyPos;
 	private Point2D.Double myPos;
-	private ArrayList<Wave> waves;
+	private ArrayList<Wave> waves_mov;
 	private double enemyEnergy;
 	private int dir;
 	private double orbitAngle;
 	private double STAT[];
+	
 
 	public WaveSurfingDamaal() {
 		enemyEnergy = 0;
 		orbitAngle = 0;
 		enemyPos = new Point2D.Double();
-		waves = new ArrayList<Wave>();
+		waves_mov = new ArrayList<Wave>();
 		dir = 1;
 		STAT = new double[STATS_DIM];
 	}
@@ -82,7 +83,7 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 
 			wave.setMyPosAtFireTime(myPos);
 
-			waves.add(wave);
+			waves_mov.add(wave);
 		}
 		enemyEnergy = event.getEnergy();
 		enemyPos = project(myPos, absoluteBearing, event.getDistance());
@@ -92,9 +93,9 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 	public void onHitByBullet(HitByBulletEvent event) {
 
 		// find the wave associated to the bullet
-		if (!waves.isEmpty()) {
+		if (!waves_mov.isEmpty()) {
 			Wave hitWave = null;
-			for (Wave wave : waves) {
+			for (Wave wave : waves_mov) {
 				if (Math.abs(wave.getDistanceTraveled() - myPos.distance(wave.getFireLocation())) > 50 && Math.abs(wave.getBulletVelocity() - bulletVelocity(event.getBullet().getPower())) < 0.001) {
 					hitWave = wave;
 					break;
@@ -153,14 +154,14 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 		getGraphics().fillRect((int) pointForward.x, (int) pointForward.y, 10, 10);
 
 		// if there is no wave the robot stay. What should we do?
-		if (waves.size() == 0)
+		if (waves_mov.size() == 0)
 			return;
 
 		// find the nearest wave
-		Wave nearestWave = waves.get(0);
-		double absMinDistance = Math.abs(myPos.distance(waves.get(0).getFireLocation()) - waves.get(0).getDistanceTraveled());
+		Wave nearestWave = waves_mov.get(0);
+		double absMinDistance = Math.abs(myPos.distance(waves_mov.get(0).getFireLocation()) - waves_mov.get(0).getDistanceTraveled());
 		// it make one unusefull iteration
-		for (Wave wave : waves) {
+		for (Wave wave : waves_mov) {
 			double absDistance = Math.abs(myPos.distance(wave.getFireLocation()) - wave.getDistanceTraveled());
 			if (absDistance < absMinDistance) {
 				nearestWave = wave;
@@ -225,11 +226,11 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 	// update waves position and delete unusefull waves
 	public void updateWaves() {
 		myPos = new Point2D.Double(getX(), getY());
-		for (int i = 0; i < waves.size(); i++) {
-			Wave wave = waves.get(i);
+		for (int i = 0; i < waves_mov.size(); i++) {
+			Wave wave = waves_mov.get(i);
 			wave.setDistanceTraveled((getTime() - wave.getFireTime()) * wave.getBulletVelocity());
 			if (wave.getDistanceTraveled() > myPos.distance(wave.getFireLocation()) + 50) {
-				waves.remove(i);
+				waves_mov.remove(i);
 				i--;
 			}
 		}
@@ -264,7 +265,7 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 
 	private void drawWaves() {
 		getGraphics().setColor(Color.blue);
-		for (Wave w : waves) {
+		for (Wave w : waves_mov) {
 			getGraphics().drawArc((int) w.getFireLocation().x - (int) w.getDistanceTraveled() / 2, (int) w.getFireLocation().y - (int) w.getDistanceTraveled() / 2, (int) w.getDistanceTraveled(), (int) w.getDistanceTraveled(), 0, 360);
 		}
 	}

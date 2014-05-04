@@ -10,7 +10,9 @@ public class Constants {
 	public static final Color gunColor = Color.BLUE;
 	public static final Color radarColor = Color.GREEN;
 	
-	public static  final int forcePower = 3; 
+	public static   int forcePower = 3; 
+	public static final int dimensions = 3;
+	public static final int KNNThreshold = 10;
 	
 
 }
