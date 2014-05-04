@@ -82,6 +82,10 @@ public class Damala extends AdvancedRobot {
 
 	}
 
+	private int fromGuessFactorToIndex(double guessFactor, int slices){
+		
+	}
+	
 	@Override
 	public void run() {
 		enemyEnergy = getEnergy();//surfer
