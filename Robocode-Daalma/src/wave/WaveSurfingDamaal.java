@@ -144,6 +144,7 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 		}
 
 	}
+	
 
 	public void surfNearestWave() {
 
