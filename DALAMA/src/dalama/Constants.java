@@ -14,5 +14,8 @@ public class Constants {
 	public static final int dimensions = 3;
 	public static final int KNNThreshold = 10;
 	
+	public static final int numSliceGF=50;
+	public static final double[] weights={0.5,1.0,1.0};//same size as dimensions
+	
 
 }

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Random;
 import java.util.Vector;
 
 import kdtree.KdTree;
@@ -26,16 +27,16 @@ public class Damala extends AdvancedRobot {
 	/*WavSurfer variables*/
 
 	private static int STATS_DIM = 47;
-	private static double WALL_STICK = 100;
+	private static double WALL_STICK = 120;
 	private static Rectangle2D.Double fieldRect = new java.awt.geom.Rectangle2D.Double(18, 18, 764, 564);
 
 	private Point2D.Double enemyPos;
 	private Point2D.Double myPos;
-	private ArrayList<Wave> waves_mov;
+	private static ArrayList<Wave> waves_mov;
 	private double enemyEnergy;
 	private int dir;
 	private double orbitAngle;
-	private double STAT[];
+	private static double STAT[];
 
 	/*END WAVESURFER VARIABLES*/
 
@@ -51,7 +52,7 @@ public class Damala extends AdvancedRobot {
 
 	private double firePower;
 
-	private static KdTree<Double> situationsKDTree = new KdTree<>(3);
+	private static KdTree<Integer> situationsKDTree = new KdTree<>(3);
 
 	double midpointstrength = 0;	//The strength of the gravity point in the middle of the field
 	int midpointcount = 0;			//Number of turns since that strength was changed.
@@ -80,11 +81,24 @@ public class Damala extends AdvancedRobot {
 		dir = 1;
 		STAT = new double[STATS_DIM];
 
+		
+		
 	}
 
 	private int fromGuessFactorToIndex(double guessFactor, int slices){
+		//range GF [0,2]
+		
+		return (int)((guessFactor)*slices)/(2);
+	}
+	
+	private double fromIndexToGuessFactor(int index,int slices){
+		double sliceSize=2.0/(double)slices;
+		double sliceStart=index*sliceSize;
+		return (sliceStart+sliceSize/2-1);//center of class
 		
 	}
+	
+	
 	
 	@Override
 	public void run() {
@@ -476,7 +490,8 @@ doScannedRobotSurfer(e);
 			if (currentWave.checkHit(ex, ey, getTime()))
 			{
 				currentWave.getRelatedSituation().setRightGessFsctor(currentWave.getRightGuessFactor());
-				situationsKDTree.addPoint(currentWave.getRelatedSituation().toKD_Key(), currentWave.getRightGuessFactor());
+				situationsKDTree.addPoint(currentWave.getRelatedSituation().toKD_Key(), 
+						fromGuessFactorToIndex(currentWave.getRightGuessFactor()+1,Constants.numSliceGF));
 				waves.remove(currentWave);
 				i--;
 			}
@@ -523,8 +538,11 @@ doScannedRobotSurfer(e);
 		EnemySituation best=newSituation;
 		double guessfactor = best.getRightGessFsctor();
 		if(situationsKDTree.size() > Constants.KNNThreshold ) {
-			MaxHeap<Double> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 2,new SquareEuclideanDistanceFunction());
-			guessfactor=maxHeap.getMax();
+//			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new SquareEuclideanDistanceFunction());
+			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new WeightedSquareEuclideanDistance(Constants.dimensions, Constants.weights));
+			
+			guessfactor=fromIndexToGuessFactor(maxHeap.getMax(),Constants.numSliceGF);
+		out.println("MAX HEAP ->"+maxHeap.getMax());
 		}
 		// this should do the opposite of the math in the WaveBullet:
 
