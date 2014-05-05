@@ -7,13 +7,12 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Random;
 import java.util.Vector;
 
 import kdtree.KdTree;
 import kdtree.MaxHeap;
-import kdtree.SquareEuclideanDistanceFunction;
 import robocode.AdvancedRobot;
+import robocode.BulletHitEvent;
 import robocode.HitByBulletEvent;
 import robocode.Rules;
 import robocode.ScannedRobotEvent;
@@ -38,8 +37,10 @@ public class Damala extends AdvancedRobot {
 	private double orbitAngle;
 	private static double STAT[];
 
+	
+	ArrayList<EnemySituation> situations = new ArrayList<>();
+	ArrayList<Integer> relatedClasses = new ArrayList<>();
 	/*END WAVESURFER VARIABLES*/
-
 
 
 	final double PI = Math.PI;		//just a constant
@@ -52,7 +53,7 @@ public class Damala extends AdvancedRobot {
 
 	private double firePower;
 
-	private static KdTree<Integer> situationsKDTree = new KdTree<>(3);
+	private static KdTree<Integer> situationsKDTree = new KdTree<>(Constants.dimensions);
 
 	double midpointstrength = 0;	//The strength of the gravity point in the middle of the field
 	int midpointcount = 0;			//Number of turns since that strength was changed.
@@ -62,7 +63,6 @@ public class Damala extends AdvancedRobot {
 	private Hashtable<String, Enemy> targets;
 
 	private static List<WaveBullet> waves= new Vector<>();
-	private static List<EnemySituation> situations= new Vector<>();
 
 
 	private void initializeStuff() {
@@ -81,25 +81,35 @@ public class Damala extends AdvancedRobot {
 		dir = 1;
 		STAT = new double[STATS_DIM];
 
-		
-		
 	}
 
 	private int fromGuessFactorToIndex(double guessFactor, int slices){
 		//range GF [0,2]
-		
+
 		return (int)((guessFactor)*slices)/(2);
 	}
-	
+
 	private double fromIndexToGuessFactor(int index,int slices){
 		double sliceSize=2.0/(double)slices;
 		double sliceStart=index*sliceSize;
 		return (sliceStart+sliceSize/2-1);//center of class
+
+	}
+
+
+	private void cutOffSituations(int limit){
+		if(situations.size()>limit){
+			situationsKDTree = new KdTree<>(Constants.dimensions);
+			for(int i=situations.size()-2;i>limit;i--){
+				situationsKDTree.addPoint(situations.get(i).toKD_Key(), relatedClasses.get(i));
+			}
+			situations.clear();
+			relatedClasses.clear();
+		}
+			
 		
 	}
-	
-	
-	
+
 	@Override
 	public void run() {
 		enemyEnergy = getEnergy();//surfer
@@ -108,6 +118,7 @@ public class Damala extends AdvancedRobot {
 		decayAppereance();
 
 		do {
+//cutOffSituations(Constants.limitSituations);
 			//printDebug();
 			// ...
 			// Turn the radar if we have no more turn, starts it if it stops and at the start of round
@@ -126,7 +137,7 @@ public class Damala extends AdvancedRobot {
 
 	}
 
-	
+
 	@Override
 	public void onHitByBullet(HitByBulletEvent event) {
 
@@ -147,7 +158,7 @@ public class Damala extends AdvancedRobot {
 		}
 
 	}
-	
+
 	// update STAT array when the robot is hitted by a bullet
 	public void updateStats(Wave wave, Point2D.Double pos) {
 
@@ -158,7 +169,7 @@ public class Damala extends AdvancedRobot {
 		}
 
 	}
-	
+
 	public static double bulletVelocity(double power) {
 		// CHECK ROBOCODE PHISICS
 		return (20.0 - (3.0 * power));
@@ -170,7 +181,7 @@ public class Damala extends AdvancedRobot {
 		endPoint.y = sourceLocation.y + Math.cos(angle) * length;
 		return endPoint;
 	}
-	
+
 	public void surfNearestWave() {
 
 		// drawing debug stuff
@@ -265,9 +276,9 @@ public class Damala extends AdvancedRobot {
 
 	@Override
 	public void onScannedRobot(ScannedRobotEvent e) {
-doScannedRobotSurfer(e);
+		doScannedRobotSurfer(e);
 
-		
+
 		doScanner(e);
 		robotScanned(e);
 
@@ -308,7 +319,7 @@ doScannedRobotSurfer(e);
 		}
 		enemyEnergy = e.getEnergy();
 		enemyPos = project(myPos, absoluteBearing, e.getDistance());
-		
+
 	}
 
 	//only when situazions.size() > 0
@@ -473,11 +484,15 @@ doScannedRobotSurfer(e);
 		return dir;
 	}
 
+	@Override
+	public void onBulletHit(BulletHitEvent event) {
+		//		situationsKDTree = new KdTree<>(Constants.dimensions);
 
+	}
 
 
 	private void processWaves(ScannedRobotEvent e) {
-		double absBearing = getHeadingRadians() + e.getBearingRadians();
+		absBearing = getHeadingRadians() + e.getBearingRadians();
 
 		// find our enemy's location:
 		double ex = getX() + Math.sin(absBearing) * e.getDistance();
@@ -492,6 +507,10 @@ doScannedRobotSurfer(e);
 				currentWave.getRelatedSituation().setRightGessFsctor(currentWave.getRightGuessFactor());
 				situationsKDTree.addPoint(currentWave.getRelatedSituation().toKD_Key(), 
 						fromGuessFactorToIndex(currentWave.getRightGuessFactor()+1,Constants.numSliceGF));
+				
+				situations.add(currentWave.getRelatedSituation());
+				relatedClasses.add(fromGuessFactorToIndex(currentWave.getRightGuessFactor()+1,Constants.numSliceGF));
+				
 				waves.remove(currentWave);
 				i--;
 			}
@@ -533,24 +552,39 @@ doScannedRobotSurfer(e);
 
 
 
-		double dist = Double.MAX_VALUE;
 
 		EnemySituation best=newSituation;
 		double guessfactor = best.getRightGessFsctor();
+		//kernel density estimation
+		double [] GF = new double[Constants.KNN_NUM_NEIGHBORS];
+		double [] firingAngles = new double[Constants.KNN_NUM_NEIGHBORS];
 		if(situationsKDTree.size() > Constants.KNNThreshold ) {
-//			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new SquareEuclideanDistanceFunction());
-			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new WeightedSquareEuclideanDistance(Constants.dimensions, Constants.weights));
-			
-			guessfactor=fromIndexToGuessFactor(maxHeap.getMax(),Constants.numSliceGF);
-		out.println("MAX HEAP ->"+maxHeap.getMax());
-		}
-		// this should do the opposite of the math in the WaveBullet:
+			//			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new SquareEuclideanDistanceFunction());
+			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), Constants.KNN_NUM_NEIGHBORS,new WeightedSquareEuclideanDistance(Constants.dimensions, Constants.weights));
 
-		double angleOffset = direction * guessfactor * (best.getMaxEscapeAngle());
-		double gunAdjust = Utils.normalRelativeAngle(
-				absBearing- getGunHeadingRadians() + angleOffset);
+			//prenditi tutti i guessFactors -> trasformali in fireingAngles corrispondenti
+			//applica un kernel density estimator per calcolare il bestFiring angle
+			guessfactor=fromIndexToGuessFactor(maxHeap.getMax(),Constants.numSliceGF);
+			out.println("MAX HEAP ->"+maxHeap.getMax());
+
+			int cont=0;
+			while(maxHeap.size()>0){
+				GF[cont]=fromIndexToGuessFactor(maxHeap.getMax(),Constants.numSliceGF);
+				firingAngles[cont]=fromGuessFactorToFiringAngle(GF[cont], firePower);
+				maxHeap.removeMax();
+				out.println("gf "+GF[cont]);
+				cont++;
+			}
+		}
+
+		double bestFiringAngle= getBestFiringAngle(firingAngles,Constants.KNN_NUM_NEIGHBORS,best.getDistance());
+
+		//double gunAdjust = fromGuessFactorToFiringAngle(guessfactor, firePower);
+		double gunAdjust=bestFiringAngle;
+		out.println(" BEST "+bestFiringAngle+ " NORMAL "+gunAdjust);
+		
 		setTurnGunRightRadians(gunAdjust);
-		out.println(""+angleOffset+","+direction+","+guessfactor+","+best.getMaxEscapeAngle());
+		out.println(" "+direction+","+guessfactor+","+EnemySituation.getMaxEscapeAngle(firePower));
 
 		waves.add(newWave);
 		if (getGunHeat() == 0 && gunAdjust < Math.atan2(9, e.getDistance()) )
@@ -559,6 +593,46 @@ doScannedRobotSurfer(e);
 	}
 
 
+	private double getBestFiringAngle(double[] firingAngles, int knnNumNeighbors,double distance) {
+		double bestAngle=0;
+		double bestDensity=0;
+		double botWidthAngle=Math.abs(36/distance);
+		for(int i=0;i<knnNumNeighbors;i++){
+			double density=0;
+			double currAngle_i=firingAngles[i];
+			for(int j=0;j<knnNumNeighbors;j++){
+				if(i!=j){
+					double currAngle_j=firingAngles[j];
+					double ux=(currAngle_i-currAngle_j)/botWidthAngle;
+//					if (Math.abs(ux) <= 1)//uniform
+//						density++;
+				
+					//gaussian
+					density=(1/Math.sqrt(2*PI))*Math.exp(-0.5*Math.pow(ux, 2));
+				}
+				
+				if (density > bestDensity)
+		            bestAngle = currAngle_i;
+		            bestDensity = density;
+			}
+		}
+		return bestAngle;
+	}
+
+	private double fromGuessFactorToFiringAngle(double GF, double bullettPower){
+
+		// this should do the opposite of the math in the WaveBullet:
+
+
+		//	double angleOffset = direction * guessfactor * (EnemySituation.getMaxEscapeAngle(firePower));
+		//	double gunAdjust = Utils.normalRelativeAngle(
+		//			absBearing- getGunHeadingRadians() + angleOffset);
+
+		double angleOffset = direction * GF * (EnemySituation.getMaxEscapeAngle(bullettPower));
+		double gunAdjust = Utils.normalRelativeAngle(
+				absBearing- getGunHeadingRadians() + angleOffset);
+		return gunAdjust;
+	}
 
 	private void robotScanned(ScannedRobotEvent e) {
 
@@ -640,44 +714,44 @@ doScannedRobotSurfer(e);
 		return ang;
 
 	}
-	
+
 	// compute the guess factor and convert it to an index on the STAT array
-		public int getStatsIndex(Wave wave, Point2D.Double pos) {
+	public int getStatsIndex(Wave wave, Point2D.Double pos) {
 
-			// Maximum escape angle computation
-			double maxEscapeAngle = Math.asin(Rules.MAX_VELOCITY / wave.getBulletVelocity());
-			// angle between the wave origin and pos
-			double currentBearingRespectToWave = Math.atan2(pos.x - wave.getFireLocation().x, pos.y - wave.getFireLocation().y);
+		// Maximum escape angle computation
+		double maxEscapeAngle = Math.asin(Rules.MAX_VELOCITY / wave.getBulletVelocity());
+		// angle between the wave origin and pos
+		double currentBearingRespectToWave = Math.atan2(pos.x - wave.getFireLocation().x, pos.y - wave.getFireLocation().y);
 
-			double offset = currentBearingRespectToWave - Math.toRadians(wave.getAbsWaveBearing());
+		double offset = currentBearingRespectToWave - Math.toRadians(wave.getAbsWaveBearing());
 
-			// guess factor represent the possible gun bearing represented as a
-			// fraction of the maximum escape angle
-			double guessFactor = wave.getMyDirAtFireTime() * Utils.normalRelativeAngle(offset) / maxEscapeAngle;
+		// guess factor represent the possible gun bearing represented as a
+		// fraction of the maximum escape angle
+		double guessFactor = wave.getMyDirAtFireTime() * Utils.normalRelativeAngle(offset) / maxEscapeAngle;
 
-			if (guessFactor > 1)
-				guessFactor = 1;
-			else if (guessFactor < -1)
-				guessFactor = -1;
+		if (guessFactor > 1)
+			guessFactor = 1;
+		else if (guessFactor < -1)
+			guessFactor = -1;
 
-			guessFactor++;
+		guessFactor++;
 
-			return (int) (STATS_DIM / 2 * guessFactor);
-		}
-		
-		public double wallSmoothing(Point2D.Double botLocation, double angle, int orientation) {
-			int fix = 0;
-			getGraphics().fillRect((int) project(botLocation, getHeading() + fix, -WALL_STICK).x, (int) project(botLocation, getHeading() + fix, -WALL_STICK).y, 10, 10);
-			if (!fieldRect.contains(project(botLocation, getHeading() + fix, WALL_STICK * dir)))
-				dir *= -1;
-			// out.println("ange "+angle+" orienation "+orientation);
-			// while (!fieldRect.contains(project(botLocation, getHeading() + fix,
-			// -WALL_STICK))) {
-			// fix -= orientation * 1;
-			// }
+		return (int) (STATS_DIM / 2 * guessFactor);
+	}
 
-			return Utils.normalAbsoluteAngleDegrees(angle + fix);
-		}
+	public double wallSmoothing(Point2D.Double botLocation, double angle, int orientation) {
+		int fix = 0;
+		getGraphics().fillRect((int) project(botLocation, getHeading() + fix, -WALL_STICK).x, (int) project(botLocation, getHeading() + fix, -WALL_STICK).y, 10, 10);
+		if (!fieldRect.contains(project(botLocation, getHeading() + fix, WALL_STICK * dir)))
+			dir *= -1;
+		// out.println("ange "+angle+" orienation "+orientation);
+		// while (!fieldRect.contains(project(botLocation, getHeading() + fix,
+		// -WALL_STICK))) {
+		// fix -= orientation * 1;
+		// }
+
+		return Utils.normalAbsoluteAngleDegrees(angle + fix);
+	}
 
 
 }

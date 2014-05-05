@@ -11,8 +11,28 @@ class Enemy {
 	private double bearing,heading,speed,x,y,distance,changehead;
 	private long ctime; 		//game time that the scan was produced
 	private boolean live; 	//is the enemy alive?
+	private double energy;
 	
-	
+	public double getEnergy() {
+		return energy;
+	}
+
+
+
+
+
+
+
+	public void setEnergy(double energy) {
+		this.energy = energy;
+	}
+
+
+
+
+
+
+
 	//Given velocity, initial velocity and time calculate the acceleration.
 	//a = (v - v0)/t
 	public static double returnAcceleration(double oldVelocity, double currVelocity, double deltaTime){
