@@ -22,7 +22,7 @@ import robocode.Rules;
 import robocode.ScannedRobotEvent;
 import robocode.util.Utils;
 
-
+ 
 
 
 public class Damala extends AdvancedRobot {
