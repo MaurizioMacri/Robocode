@@ -16,6 +16,7 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 	private static int STATS_DIM = 47;
 	private static double WALL_STICK = 100;
 	private static Rectangle2D.Double fieldRect = new java.awt.geom.Rectangle2D.Double(18, 18, 764, 564);
+	private static double STAT[] = new double[STATS_DIM];;
 
 	private Point2D.Double enemyPos;
 	private Point2D.Double myPos;
@@ -23,7 +24,6 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 	private double enemyEnergy;
 	private int dir;
 	private double orbitAngle;
-	private double STAT[];
 
 	public WaveSurfingDamaal() {
 		enemyEnergy = 0;
@@ -31,7 +31,6 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 		enemyPos = new Point2D.Double();
 		waves = new ArrayList<Wave>();
 		dir = 1;
-		STAT = new double[STATS_DIM];
 	}
 
 	@Override
@@ -61,6 +60,8 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 
 		// absolute Bearing is needed to compute enemy position
 		double absoluteBearing = getHeading() + event.getBearing();
+
+		setTurnRadarLeft(Utils.normalRelativeAngleDegrees(getRadarHeading() - absoluteBearing));
 
 		double bulletPower = enemyEnergy - event.getEnergy();
 
@@ -95,15 +96,17 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 		if (!waves.isEmpty()) {
 			Wave hitWave = null;
 			for (Wave wave : waves) {
-				if (Math.abs(wave.getDistanceTraveled() - myPos.distance(wave.getFireLocation())) > 50 && Math.abs(wave.getBulletVelocity() - bulletVelocity(event.getBullet().getPower())) < 0.001) {
+				if (Math.abs(wave.getDistanceTraveled() - myPos.distance(wave.getFireLocation())) > 10 && Math.abs(wave.getBulletVelocity() - bulletVelocity(event.getBullet().getPower())) < 0.001) {
 					hitWave = wave;
 					break;
 				}
 			}
 
 			// Update STAT
-			if (hitWave != null)
+			if (hitWave != null) {
 				updateStats(hitWave, myPos);
+				waves.remove(waves.lastIndexOf(hitWave));
+			}
 
 		}
 
@@ -138,19 +141,24 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 
 		int index = getStatsIndex(wave, pos);
 
+		out.println("hitted!!! " + index);
+
 		for (int i = 0; i < STATS_DIM; i++) {
 			STAT[i] += 1.0 / (Math.pow(index - i, 2) + 1);
 		}
 
 	}
 
+	Point2D.Double pointForward = new Point2D.Double(1, 1);
+	Point2D.Double pointBackward = new Point2D.Double(1, 1);
+
 	public void surfNearestWave() {
 
 		// drawing debug stuff
-		Point2D.Double pointForward = new Point2D.Double(1, 1);
-		Point2D.Double pointBackward = new Point2D.Double(1, 1);
-		getGraphics().fillRect((int) pointBackward.x, (int) pointBackward.y, 10, 10);
-		getGraphics().fillRect((int) pointForward.x, (int) pointForward.y, 10, 10);
+		// getGraphics().fillRect((int) pointBackward.x, (int) pointBackward.y,
+		// 10, 10);
+		// getGraphics().fillRect((int) pointForward.x, (int) pointForward.y,
+		// 10, 10);
 
 		// if there is no wave the robot stay. What should we do?
 		if (waves.size() == 0)
@@ -168,6 +176,28 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 			}
 		}
 
+		// predict the robot postition at the time the wave will hit him
+		// THIS NEED TESTING
+		// Should I use precise prediction???
+		double tickUntilHit = absMinDistance / nearestWave.getBulletVelocity();
+		double maxCoverDistanceBack = -tickUntilHit * Rules.MAX_VELOCITY / 2;
+		double maxCoverDistanceFront = tickUntilHit * Rules.MAX_VELOCITY / 2;
+
+		while (!fieldRect.contains(project(myPos, getHeading(), -maxCoverDistanceBack)))
+			maxCoverDistanceBack++;
+		while (!fieldRect.contains(project(myPos, getHeading(), maxCoverDistanceFront)))
+			maxCoverDistanceFront--;
+
+		pointBackward = project(myPos, getHeading(), maxCoverDistanceBack);
+		pointForward = project(myPos, getHeading(), maxCoverDistanceFront);
+
+		// move to the less dangerous position according to the STAT array
+		if (STAT[getStatsIndex(nearestWave, pointBackward)] > STAT[getStatsIndex(nearestWave, pointForward)]) {
+			dir = 1;
+		} else if (STAT[getStatsIndex(nearestWave, pointBackward)] < STAT[getStatsIndex(nearestWave, pointForward)]) {
+			dir = -1;
+		}
+
 		// compute the orbit angle to surf the wave
 
 		// angle between the wave origin and my current position
@@ -175,24 +205,14 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 
 		orbitAngle = getHeading() - Math.toDegrees(currentBearingRespectToWave) - 90;
 
-		orbitAngle = Utils.normalRelativeAngleDegrees(wallSmoothing(myPos, orbitAngle, dir));
+		orbitAngle = Utils.normalRelativeAngleDegrees(orbitAngle);
 
-		// predict the robot postition at the time the wave will hit him
-		// THIS NEED TESTING
-		double tickUntilHit = absMinDistance / nearestWave.getBulletVelocity();
-		double maxCoverDistance = tickUntilHit * Rules.MAX_VELOCITY;
-
-		pointBackward = project(myPos, getHeading(), maxCoverDistance);
-		pointForward = project(myPos, getHeading(), -maxCoverDistance);
-
-		// move to the less dangerous position according to the STAT array
-		if (STAT[getStatsIndex(nearestWave, pointBackward)] > STAT[getStatsIndex(nearestWave, pointForward)]) {
-			dir = -1;
-		} else if (STAT[getStatsIndex(nearestWave, pointBackward)] < STAT[getStatsIndex(nearestWave, pointForward)]) {
-			dir = 1;
+		// if I go against a wall I change my direction
+		// Should I use wallSmoothing???
+		Point2D.Double nextPoint2 = project(myPos, getHeading(), WALL_STICK * dir);
+		if (!fieldRect.contains(nextPoint2)) {
+			dir = dir * -1;
 		}
-
-		orbitAngle = Utils.normalRelativeAngleDegrees(wallSmoothing(myPos, orbitAngle, dir));
 
 		setTurnLeft(orbitAngle);
 		setAhead(100 * dir);
@@ -228,7 +248,7 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 		for (int i = 0; i < waves.size(); i++) {
 			Wave wave = waves.get(i);
 			wave.setDistanceTraveled((getTime() - wave.getFireTime()) * wave.getBulletVelocity());
-			if (wave.getDistanceTraveled() > myPos.distance(wave.getFireLocation()) + 50) {
+			if (wave.getDistanceTraveled() > myPos.distance(wave.getFireLocation()) + 10) {
 				waves.remove(i);
 				i--;
 			}
@@ -240,19 +260,16 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 		return (20.0 - (3.0 * power));
 	}
 
-	public double wallSmoothing(Point2D.Double botLocation, double angle, int orientation) {
-		int fix = 0;
-		getGraphics().fillRect((int) project(botLocation, getHeading() + fix, -WALL_STICK).x, (int) project(botLocation, getHeading() + fix, -WALL_STICK).y, 10, 10);
-		if (!fieldRect.contains(project(botLocation, getHeading() + fix, WALL_STICK * dir)))
-			dir *= -1;
-		// out.println("ange "+angle+" orienation "+orientation);
-		// while (!fieldRect.contains(project(botLocation, getHeading() + fix,
-		// -WALL_STICK))) {
-		// fix -= orientation * 1;
-		// }
-
-		return Utils.normalAbsoluteAngleDegrees(angle + fix);
-	}
+	// public double wallSmoothing(Point2D.Double botLocation, double angle, int
+	// orientation) {
+	//
+	// Point2D.Double nextPoint2 = project(myPos, getHeading(), WALL_STICK*dir);
+	// if(!fieldRect.contains(nextPoint2)){
+	// dir=dir*-1;
+	// }
+	//
+	// return angle;
+	// }
 
 	public static Point2D.Double project(Point2D.Double sourceLocation, double angle, double length) {
 		angle = Math.toRadians(angle);
