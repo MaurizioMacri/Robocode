@@ -1,4 +1,4 @@
-package wave;
+package dalama;
 
 import java.awt.geom.Point2D;
 

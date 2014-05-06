@@ -17,16 +17,12 @@ public class EnemySituation {
 
 	private double power;
 
-	
 
 	public double[] toKD_Key(){
 		double [] key= new double[Constants.dimensions];
 		key[0]=distance;
 		key[1]=lateralVelocity;
 		key[2]=advancingVelocity;
-		key[3]=lateralAcceleration;
-		key[4]=advancingAcceleration;
-		key[5]=bulletFlightTime;
 		return key;
 	}
 
@@ -56,7 +52,7 @@ public class EnemySituation {
 		return velocity;
 	}
 
-	public static double getMaxEscapeAngle(double power){
+	public double getMaxEscapeAngle(){
 		return Math.asin(8/(WaveBullet.getBulletSpeed(power)));
 	}
 
