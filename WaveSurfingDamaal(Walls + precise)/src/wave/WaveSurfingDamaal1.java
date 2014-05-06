@@ -11,7 +11,7 @@ import robocode.Rules;
 import robocode.ScannedRobotEvent;
 import robocode.util.Utils;
 
-public class WaveSurfingDamaal extends AdvancedRobot {
+public class WaveSurfingDamaal1 extends AdvancedRobot {
 
 	private static int STATS_DIM = 47;
 	private static double WALL_STICK = 100;
@@ -25,7 +25,7 @@ public class WaveSurfingDamaal extends AdvancedRobot {
 	private int dir;
 	private double orbitAngle;
 
-	public WaveSurfingDamaal() {
+	public WaveSurfingDamaal1() {
 		enemyEnergy = 0;
 		orbitAngle = 0;
 		enemyPos = new Point2D.Double();
