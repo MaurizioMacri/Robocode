@@ -1,7 +1,8 @@
-package dalama;
+package ulils;
 
-public class EnemySituation {
-	private boolean goodCategorized=false;
+import dalama.Constants;
+
+public class RobotSituation {
 
 	private long time;
 	private double firedGuessFactor;
@@ -18,6 +19,25 @@ public class EnemySituation {
 	private double power;
 
 	
+	public RobotSituation(RobotSituation ToBecloned) {
+		this.time =ToBecloned.time;
+		this.firedGuessFactor =ToBecloned.firedGuessFactor;
+		this.rightGessFsctor =ToBecloned.rightGessFsctor;
+		this.distance =ToBecloned.distance;
+		this.bulletFlightTime =ToBecloned.bulletFlightTime;
+		this.lateralVelocity =ToBecloned.lateralVelocity;
+		this.advancingVelocity =ToBecloned.advancingVelocity;
+		this.lateralAcceleration =ToBecloned.lateralAcceleration;
+		this.advancingAcceleration =ToBecloned.advancingAcceleration;
+		this.velocity =ToBecloned.velocity;
+		this.power =ToBecloned.power;
+	}
+
+public RobotSituation() {
+	// TODO Auto-generated constructor stub
+}
+	
+
 
 	public double[] toKD_Key(){
 		double [] key= new double[Constants.dimensions];
@@ -30,7 +50,7 @@ public class EnemySituation {
 		return key;
 	}
 
-	public void printEnemySituation() {
+	public void printRobotSituation() {
 		System.out.println("--ENEMY SITUATION-- : "+time);
 		System.out.println("\t Distance           : "+distance);
 		System.out.println("\t Bullet Flight time : "+bulletFlightTime);
@@ -56,112 +76,77 @@ public class EnemySituation {
 		return velocity;
 	}
 
-	public static double getMaxEscapeAngle(double power){
-		return Math.asin(8/(WaveBullet.getBulletSpeed(power)));
+	public long getTime() {
+		return time;
 	}
 
-	public double getEuclideanDistance(EnemySituation s){
-		double Eudistance =
-				Math.sqrt(Math.pow(distance-s.getDistance(), 2)
-						+Math.pow(lateralVelocity-s.getLateralVelocity(), 2)
-						+ Math.pow(advancingVelocity-s.getAdvancingVelocity(), 2)
-						//						+ Math.pow(lateralAcceleration-s.getLateralAcceleration(), 2)
-						//						+Math.pow(advancingAcceleration-s.advancingAcceleration, 2)
-						);
-		return Eudistance;
-	}
-
-	public double getManhattanDistance(EnemySituation s){
-		double Eudistance =
-				Math.abs(distance-s.getDistance())
-				+Math.abs(lateralVelocity-s.getLateralVelocity()) 
-				+ Math.abs(advancingVelocity-s.getAdvancingVelocity())
-				+ Math.abs(lateralAcceleration-s.getLateralAcceleration())
-				+Math.abs(bulletFlightTime-s.bulletFlightTime)
-				+Math.abs(lateralAcceleration-s.lateralAcceleration)
-				+Math.abs(advancingAcceleration-s.advancingAcceleration);
-		return Eudistance;
-	}
-
-
-	public boolean isGoodCategorized() {
-		return goodCategorized;
-	}
-
-	public void setGoodCategorized(boolean goodCategorized) {
-		this.goodCategorized = goodCategorized;
+	public void setTime(long time) {
+		this.time = time;
 	}
 
 	public double getFiredGuessFactor() {
 		return firedGuessFactor;
 	}
+
 	public void setFiredGuessFactor(double firedGuessFactor) {
 		this.firedGuessFactor = firedGuessFactor;
 	}
+
 	public double getRightGessFsctor() {
 		return rightGessFsctor;
 	}
+
 	public void setRightGessFsctor(double rightGessFsctor) {
 		this.rightGessFsctor = rightGessFsctor;
-		goodCategorized=true;
 	}
+
 	public double getDistance() {
 		return distance;
 	}
+
 	public void setDistance(double distance) {
 		this.distance = distance;
 	}
-	public double getBulltFlightTime() {
-		return bulletFlightTime;
-	}
-	public void setBulletFlightTime(double bulletFlightTime) {
-		this.bulletFlightTime = bulletFlightTime;
-	}
+
 	public double getLateralVelocity() {
 		return lateralVelocity;
 	}
+
 	public void setLateralVelocity(double lateralVelocity) {
 		this.lateralVelocity = lateralVelocity;
 	}
+
 	public double getAdvancingVelocity() {
 		return advancingVelocity;
 	}
+
 	public void setAdvancingVelocity(double advancingVelocity) {
 		this.advancingVelocity = advancingVelocity;
 	}
+
 	public double getLateralAcceleration() {
 		return lateralAcceleration;
 	}
+
 	public void setLateralAcceleration(double lateralAcceleration) {
 		this.lateralAcceleration = lateralAcceleration;
 	}
+
 	public double getAdvancingAcceleration() {
 		return advancingAcceleration;
 	}
+
 	public void setAdvancingAcceleration(double advancingAcceleration) {
 		this.advancingAcceleration = advancingAcceleration;
 	}
+
+	public void setBulletFlightTime(double bulletFlightTime) {
+		this.bulletFlightTime = bulletFlightTime;
+	}
+
 	public void setVelocity(double velocity) {
-		this.velocity=velocity;
-
-	}
-	public long getTime() {
-		return time;
-	}
-	public void setTime(long time) {
-		this.time = time;
+		this.velocity = velocity;
 	}
 
-
-	//	double distanceRightWall;
-	//	double distanceLeftWall;
-	//	double distancetTopWall;
-	//	double distanceBottomWall;
-
-
-
-
-
-
-
+	
 }

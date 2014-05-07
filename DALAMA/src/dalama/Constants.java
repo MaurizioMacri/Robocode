@@ -21,6 +21,9 @@ public class Constants {
 	public static final int limitSituations = 200;
 	
 	
+	public static final int waveVisibilityOffset = 50;//in pixels
+	public static final double EPISILON = 0.001;
+	
 	public static double getBulletDamage(double energy) {
 		
         double damage= 4 * energy;
