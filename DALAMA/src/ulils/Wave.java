@@ -56,10 +56,10 @@ public class Wave {
 		return false;
 	}
 
-	public double GF_UsedByEnemy(Point2D.Double pos){
+	public double GF_UsedByEnemy(){
 		
 		double maxEscapeAngle = RoboUtils.getMaxEscapeAngle(power);
-		double currentBearingRespectToWave = Math.atan2(pos.x - getStartPoint().x, pos.y - getStartPoint().y);
+		double currentBearingRespectToWave = Math.atan2(myPosAtFireTime.x - getStartPoint().x, myPosAtFireTime.y - getStartPoint().y);
 		double offset = currentBearingRespectToWave - Math.toRadians(getStartAbsBearing());
 		double guessFactor = getDirection() * Utils.normalRelativeAngle(offset) / maxEscapeAngle;
 		if (guessFactor > 1)

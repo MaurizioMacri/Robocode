@@ -6,6 +6,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Random;
 import java.util.Vector;
 
 import kdtree.KdTree;
@@ -26,7 +27,7 @@ public class Damala extends AdvancedRobot {
 	/* WavSurfer variables */
 
 	private static int STATS_DIM = 47;
-	private static double WALL_STICK = 120;
+	private static double WALL_STICK = 80;
 	private static Rectangle2D.Double fieldRect = new java.awt.geom.Rectangle2D.Double(18, 18, 764, 564);
 
 	private Point2D.Double enemyPos;
@@ -53,18 +54,12 @@ public class Damala extends AdvancedRobot {
 	// middle of the field
 	int midpointcount = 0; // Number of turns since that strength was changed.
 
-
 	private static List<Wave> waves = new Vector<>();
 
-
-
-	private static MovementsManager movManager;
+	private static MovementsManager movManager = new MovementsManager();;
 	private RobotSituation mySituation;
 
-
 	private void initializeStuff() {
-		movManager = new MovementsManager();
-
 
 		setAdjustGunForRobotTurn(true);
 		setAdjustRadarForGunTurn(true);
@@ -112,7 +107,7 @@ public class Damala extends AdvancedRobot {
 			doGun();
 			// fire(firePower);
 			execute();
-				
+			out.println("size = " + movManager.sizeHistory());
 		} while (true);
 
 	}
@@ -131,23 +126,12 @@ public class Damala extends AdvancedRobot {
 			}
 
 			// Update STAT
-			if (hitWave != null){
-				movManager.addSituation(hitWave.getRelatedSituation(),hitWave.GF_UsedByEnemy(myCurrPos) );
-				
+			if (hitWave != null) {
+				movManager.addSituation(hitWave.getRelatedSituation(), hitWave.GF_UsedByEnemy());
+
 				out.println("AGGIUNTO e colpito ");
 			}
 
-		}
-
-	}
-
-	// update STAT array when the robot is hitted by a bullet
-	public void updateStats(Wave wave, Point2D.Double pos) {
-
-		int index = getStatsIndex(wave, pos);
-
-		for (int i = 0; i < STATS_DIM; i++) {
-			STAT[i] += 1.0 / (Math.pow(index - i, 2) + 1);
 		}
 
 	}
@@ -162,62 +146,99 @@ public class Damala extends AdvancedRobot {
 
 	public void surfNearestWave() {
 		Point2D.Double myPos = new Point2D.Double(getX(), getY());
-		// drawing debug stuff
-		Point2D.Double pointForward = new Point2D.Double(1, 1);
-		Point2D.Double pointBackward = new Point2D.Double(1, 1);
-		getGraphics().fillRect((int) pointBackward.x, (int) pointBackward.y, 10, 10);
-		getGraphics().fillRect((int) pointForward.x, (int) pointForward.y, 10, 10);
+		long currTime = getTime();
 
-		// if there is no wave the robot stay. What should we do?
 		if (waves_mov.size() == 0)
 			return;
 
 		// find the nearest wave
 		Wave nearestWave = waves_mov.get(0);
 		double absMinDistance = Math.abs(myPos.distance(waves_mov.get(0).getStartPoint())
-				- waves_mov.get(0).getDistanceTraveled(getTime()));
+				- waves_mov.get(0).getDistanceTraveled(currTime));
 		// it make one unusefull iteration
 		for (Wave wave : waves_mov) {
-			double absDistance = Math.abs(myPos.distance(wave.getStartPoint()) - wave.getDistanceTraveled(getTime()));
+			double absDistance = Math.abs(myPos.distance(wave.getStartPoint()) - wave.getDistanceTraveled(currTime));
 			if (absDistance < absMinDistance) {
 				nearestWave = wave;
 				absMinDistance = absDistance;
 			}
 		}
 
-		// compute the orbit angle to surf the wave
-
-		// angle between the wave origin and my current position
+		
 		double currentBearingRespectToWave = Math.atan2(myPos.x - nearestWave.getStartPoint().x,
 				myPos.y - nearestWave.getStartPoint().y);
 
-		orbitAngle = getHeading() - Math.toDegrees(currentBearingRespectToWave) - 90;
-
-		orbitAngle = Utils.normalRelativeAngleDegrees(wallSmoothing(myPos, orbitAngle, dir));
-
-		// predict the robot postition at the time the wave will hit him
-		// THIS NEED TESTING
-		double tickUntilHit = absMinDistance / nearestWave.getBulletVelocity();
-		double maxCoverDistance = tickUntilHit * Rules.MAX_VELOCITY;
-
-		pointBackward = project(myPos, getHeading(), maxCoverDistance);
-		pointForward = project(myPos, getHeading(), -maxCoverDistance);
-
-		// move to the less dangerous position according to the STAT array
-		if (STAT[getStatsIndex(nearestWave, pointBackward)] > STAT[getStatsIndex(nearestWave, pointForward)]) {
-			dir = -1;
-		} else if (STAT[getStatsIndex(nearestWave, pointBackward)] < STAT[getStatsIndex(nearestWave, pointForward)]) {
-			dir = 1;
+		
+		if (movManager.sizeHistory() > Constants.KNN_NUM_NEIGHBORS) {
+			double GFPredicted = movManager.mostProbableGFEnemyFireTo(nearestWave.getRelatedSituation());
+			if (GFPredicted < 0) {
+				// destra
+				dir = 1;
+			} else if (GFPredicted > 0) {
+				dir = -1;
+			}
+			System.out.println("DIREZIONEEEEEEEEEEEEE "+GFPredicted);
 		}
 
-		orbitAngle = Utils.normalRelativeAngleDegrees(wallSmoothing(myPos, orbitAngle, dir));
+		
+		// predict the robot postition at the time the wave will hit him
+		// THIS NEED TESTING
+		// Should I use precise prediction???
+		// double tickUntilHit = absMinDistance /
+		// nearestWave.getBulletVelocity();
+		// double maxCoverDistanceBack = -tickUntilHit * Rules.MAX_VELOCITY / 2;
+		// double maxCoverDistanceFront = tickUntilHit * Rules.MAX_VELOCITY / 2;
+		//
+		// while (!fieldRect.contains(project(myPos, getHeading(),
+		// -maxCoverDistanceBack)))
+		// maxCoverDistanceBack++;
+		// while (!fieldRect.contains(project(myPos, getHeading(),
+		// maxCoverDistanceFront)))
+		// maxCoverDistanceFront--;
+		//
+		// Point2D.Double pointBackward = project(myPos, getHeading(),
+		// maxCoverDistanceBack);
+		// Point2D.Double pointForward = project(myPos, getHeading(),
+		// maxCoverDistanceFront);
+		//
+		// // move to the less dangerous position according to the STAT array
+		// if (STAT[getStatsIndex(nearestWave, pointBackward)] >
+		// STAT[getStatsIndex(nearestWave, pointForward)]) {
+		// dir = 1;
+		// } else if (STAT[getStatsIndex(nearestWave, pointBackward)] <
+		// STAT[getStatsIndex(nearestWave, pointForward)]) {
+		// dir = -1;
+		// }
 
-		setTurnLeft(orbitAngle);
-		setAhead(100 * dir);
+		// compute the orbit angle to surf the wave
 
-		// drawing debug stuff
+		// angle between the wave origin and my current position
 
-		getGraphics().setColor(new Color(0.0f, 0.0f, 1.0f, 0.5f));
+
+		orbitAngle = Math.toDegrees(currentBearingRespectToWave);
+		orbitAngle = wallSmoothing(myPos, orbitAngle + (90) * dir, dir);
+
+		setBackAsFront(this, orbitAngle);
+
+		// orbitAngle = getHeading() -
+		// Math.toDegrees(currentBearingRespectToWave) - 90;
+		//
+		// orbitAngle = Utils.normalRelativeAngleDegrees(orbitAngle);
+		//
+		// // if I go against a wall I change my direction
+		// // Should I use wallSmoothing???
+		// Point2D.Double nextPoint2 = project(myPos, getHeading(), WALL_STICK *
+		// dir);
+		// if (!fieldRect.contains(nextPoint2)) {
+		// dir = dir * -1;
+		// }
+		//
+		// setTurnLeft(orbitAngle);
+		// setAhead(10 * dir);
+		//
+		// // drawing debug stuff
+		//
+		// getGraphics().setColor(new Color(0.0f, 0.0f, 1.0f, 0.5f));
 
 		// drawing maximum escape angle
 		double maxEscapeAngle = Math.asin(Rules.MAX_VELOCITY / nearestWave.getBulletVelocity());
@@ -239,7 +260,7 @@ public class Damala extends AdvancedRobot {
 		for (int i = 0; i < STATS_DIM; i++) {
 			getGraphics().setColor(new Color((float) (1 / (STAT[i] + 1)), 0, 1 - (float) (1 / (STAT[i] + 1)), 0.5f));
 			stat = project(nearestWave.getStartPoint(), -maxEscapeAngle / 2 + nearestWave.getStartAbsBearing() + i
-					* (maxEscapeAngle / STATS_DIM), nearestWave.getDistanceTraveled(getTime()));
+					* (maxEscapeAngle / STATS_DIM), nearestWave.getDistanceTraveled(currTime));
 			getGraphics().fillRect((int) stat.x, (int) stat.y, 4, 4);
 		}
 
@@ -270,29 +291,24 @@ public class Damala extends AdvancedRobot {
 
 	}
 
-
-	private RobotSituation getMySituation(double bearing){
-		Point2D.Double myPos = new Point2D.Double(getX(),getY());
-		mySituation= new RobotSituation();
+	private RobotSituation getMySituation(double bearing) {
+		Point2D.Double myPos = new Point2D.Double(getX(), getY());
+		mySituation = new RobotSituation();
 		mySituation.setDistance(myPos.distance(enemyPos));
 		mySituation.setTime(getTime());
 		mySituation.setAdvancingVelocity(getVelocity() * -1
 				* Math.cos(getHeadingRadians() - (bearing + getHeadingRadians())));
-		mySituation.setLateralVelocity(getVelocity()
-				* Math.sin(getHeadingRadians() - (bearing + getHeadingRadians())));
+		mySituation.setLateralVelocity(getVelocity() * Math.sin(getHeadingRadians() - (bearing + getHeadingRadians())));
 		mySituation.setPower(firePower);
-		
-		
+
 		mySituation.printRobotSituation();
 
 		return mySituation;
 
-
 	}
 
 	private void doScannedRobotSurfer(ScannedRobotEvent e) {
-		Point2D.Double myPos = new Point2D.Double(getX(),getY());
-
+		Point2D.Double myPos = new Point2D.Double(getX(), getY());
 
 		// absolute Bearing is needed to compute enemy position
 		double absoluteBearing = getHeading() + e.getBearing();
@@ -320,7 +336,7 @@ public class Damala extends AdvancedRobot {
 			waves_mov.add(wave);
 		}
 		enemyEnergy = e.getEnergy();
-		mySituation= getMySituation(e.getBearingRadians());
+		mySituation = getMySituation(e.getBearingRadians());
 		enemyPos = project(myPos, absoluteBearing, e.getDistance());
 
 	}
@@ -471,11 +487,12 @@ public class Damala extends AdvancedRobot {
 				if (i != j) {
 					double currAngle_j = firingAngles[j];
 					double ux = (currAngle_i - currAngle_j) / botWidthAngle;
-					if (Math.abs(ux) <= 1)//uniform
+					if (Math.abs(ux) <= 1)// uniform
 						density++;
 
 					// gaussian
-					//density = (1 / Math.sqrt(2 * PI)) * Math.exp(-0.5 * Math.pow(ux, 2));
+					// density = (1 / Math.sqrt(2 * PI)) * Math.exp(-0.5 *
+					// Math.pow(ux, 2));
 				}
 
 				if (density > bestDensity)
@@ -499,8 +516,6 @@ public class Damala extends AdvancedRobot {
 		double gunAdjust = Utils.normalRelativeAngle(absBearing - getGunHeadingRadians() + angleOffset);
 		return gunAdjust;
 	}
-
-
 
 	private void doScanner(ScannedRobotEvent e) {
 		/**
@@ -543,46 +558,37 @@ public class Damala extends AdvancedRobot {
 
 	}
 
-	// if a bearing is not within the -pi to pi range, alters it to provide the
-	// shortest angle
-
-	// compute the guess factor and convert it to an index on the STAT array
-	public int getStatsIndex(Wave wave, Point2D.Double pos) {
-
-		// Maximum escape angle computation
-		double maxEscapeAngle = Math.asin(Rules.MAX_VELOCITY / wave.getBulletVelocity());
-		// angle between the wave origin and pos
-		double currentBearingRespectToWave = Math.atan2(pos.x - wave.getStartPoint().x, pos.y - wave.getStartPoint().y);
-
-		double offset = currentBearingRespectToWave - Math.toRadians(wave.getStartAbsBearing());
-
-		// guess factor represent the possible gun bearing represented as a
-		// fraction of the maximum escape angle
-		double guessFactor = wave.getDirection() * Utils.normalRelativeAngle(offset) / maxEscapeAngle;
-
-		if (guessFactor > 1)
-			guessFactor = 1;
-		else if (guessFactor < -1)
-			guessFactor = -1;
-
-		guessFactor++;
-
-		return (int) (STATS_DIM / 2 * guessFactor);
+	public static Point2D.Double projectRadians(Point2D.Double sourceLocation, double angle, double length) {
+		Point2D.Double endPoint = new Point2D.Double();
+		endPoint.x = sourceLocation.x + Math.sin(angle) * length;
+		endPoint.y = sourceLocation.y + Math.cos(angle) * length;
+		return endPoint;
 	}
 
 	public double wallSmoothing(Point2D.Double botLocation, double angle, int orientation) {
-		int fix = 0;
-		getGraphics().fillRect((int) project(botLocation, getHeading() + fix, -WALL_STICK).x,
-				(int) project(botLocation, getHeading() + fix, -WALL_STICK).y, 10, 10);
-		if (!fieldRect.contains(project(botLocation, getHeading() + fix, WALL_STICK * dir)))
-			dir *= -1;
-		// out.println("ange "+angle+" orienation "+orientation);
-		// while (!fieldRect.contains(project(botLocation, getHeading() + fix,
-		// -WALL_STICK))) {
-		// fix -= orientation * 1;
-		// }
+		while (!fieldRect.contains(project(botLocation, angle, WALL_STICK))) {
+			angle += orientation * 0.5;
+		}
+		return angle;
+	}
 
-		return Utils.normalAbsoluteAngleDegrees(angle + fix);
+	public static void setBackAsFront(AdvancedRobot robot, double goAngle) {
+		double angle = Utils.normalRelativeAngleDegrees(goAngle - robot.getHeading());
+		if (Math.abs(angle) > (90)) {
+			if (angle < 0) {
+				robot.setTurnRight(90 + angle);
+			} else {
+				robot.setTurnLeft(90 - angle);
+			}
+			robot.setBack(100);
+		} else {
+			if (angle < 0) {
+				robot.setTurnLeft(-1 * angle);
+			} else {
+				robot.setTurnRight(angle);
+			}
+			robot.setAhead(100);
+		}
 	}
 
 }

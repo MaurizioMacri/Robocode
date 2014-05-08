@@ -12,7 +12,7 @@ public class Constants {
 	
 	public static   int forcePower = 3; 
 	public static final int KNNThreshold = 7;
-	public static final int KNN_NUM_NEIGHBORS= 5 ;
+	public static final int KNN_NUM_NEIGHBORS= 3 ;
 	
 	
 	public static final int numSliceGF=1000;
