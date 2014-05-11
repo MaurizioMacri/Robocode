@@ -1,4 +1,4 @@
-package dalama;
+package dalama_knn_JML;
 
 import java.awt.Color;
 

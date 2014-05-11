@@ -1,4 +1,4 @@
-package dalama;
+package dalama_knn_JML;
 
 /**Holds the x, y, and strength info of a gravity point**/
 class GravityPoint {

@@ -1,4 +1,4 @@
-package dalama;
+package dalama_knn_JML;
 
 public class EnemySituation {
 	private boolean goodCategorized=false;

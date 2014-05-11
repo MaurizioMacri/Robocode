@@ -1,4 +1,4 @@
-package dalama;
+package dalama_knn_JML;
 
 import java.awt.Color;
 import java.awt.geom.Point2D;
@@ -546,8 +546,10 @@ doScannedRobotSurfer(e);
 //			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new SquareEuclideanDistanceFunction());
 //			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), 3,new WeightedSquareEuclideanDistance(Constants.dimensions, Constants.weights));
 			Classifier knn = new KNearestNeighbors(3);
+//			System.out.println("AAAAAAAAAAAAAAAAAAAA");
 			knn.buildClassifier(situationsDataset);
-			guessfactor=fromIndexToGuessFactor(Integer.parseInt((String) knn.classify(new DenseInstance(newSituation.toKD_Key()))),Constants.numSliceGF);
+//			System.out.println(knn.classDistribution(new DenseInstance(newSituation.toKD_Key())));
+			guessfactor=fromIndexToGuessFactor((Integer )knn.classify(new DenseInstance(newSituation.toKD_Key())),Constants.numSliceGF);
 //		out.println("MAX HEAP ->"+maxHeap.getMax());
 		}
 		// this should do the opposite of the math in the WaveBullet:
