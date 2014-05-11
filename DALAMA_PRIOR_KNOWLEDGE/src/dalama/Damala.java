@@ -393,7 +393,7 @@ public class Damala extends AdvancedRobot {
 				situationsKDTree.addPoint(currentWave.getRelatedSituation().toKD_Key(),
 						fromGuessFactorToIndex(currentWave.getRightGuessFactor() + 1, Constants.numSliceGF));
 //				prior.addPriorKnowledge(currentWave.getRelatedSituation().toKD_Key(), fromGuessFactorToIndex(currentWave.getRightGuessFactor() + 1, Constants.numSliceGF));
-//				prior.loadPriorKnowledge(situationsKDTree);
+				prior.loadPriorKnowledge(situationsKDTree);
 				situations.add(currentWave.getRelatedSituation());
 				relatedClasses.add(fromGuessFactorToIndex(currentWave.getRightGuessFactor() + 1, Constants.numSliceGF));
 
