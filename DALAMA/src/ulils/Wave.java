@@ -1,11 +1,9 @@
 package ulils;
 
 import java.awt.geom.Point2D;
-import java.awt.geom.Point2D.Double;
-
-import dalama.Constants;
 
 import robocode.util.Utils;
+import dalama.Constants;
 
 public class Wave {
 

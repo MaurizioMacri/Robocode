@@ -1,18 +1,14 @@
 package dalama;
 
-import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
-import java.util.Random;
 import java.util.Vector;
 
 import kdtree.KdTree;
 import kdtree.MaxHeap;
 import robocode.AdvancedRobot;
-import robocode.BulletHitEvent;
 import robocode.HitByBulletEvent;
 import robocode.Rules;
 import robocode.ScannedRobotEvent;
@@ -26,38 +22,51 @@ public class Damala extends AdvancedRobot {
 
 	/* WavSurfer variables */
 
-	private static int STATS_DIM = 47;
 	private static double WALL_STICK = 80;
 	private static Rectangle2D.Double fieldRect = new java.awt.geom.Rectangle2D.Double(18, 18, 764, 564);
+	private static ArrayList<Wave> waves_mov;
 
 	private Point2D.Double enemyPos;
-	private static ArrayList<Wave> waves_mov;
 	private double enemyEnergy;
 	private int dir;
 	private double orbitAngle;
-	private static double STAT[];
 
-	ArrayList<RobotSituation> situations = new ArrayList<>();
-	ArrayList<Integer> relatedClasses = new ArrayList<>();
+	private ArrayList<RobotSituation> situations = new ArrayList<>();
+	private ArrayList<Integer> relatedClasses = new ArrayList<>();
 	/* END WAVESURFER VARIABLES */
 
-	final double PI = Math.PI; // just a constant
-
-	double absBearing;
-	private int direction;
-
-	private double firePower;
-
 	private static KdTree<Integer> situationsKDTree = new KdTree<>(Constants.dimensions);
-
-	double midpointstrength = 0; // The strength of the gravity point in the
-	// middle of the field
-	int midpointcount = 0; // Number of turns since that strength was changed.
-
 	private static List<Wave> waves = new Vector<>();
-
 	private static MovementsManager movManager = new MovementsManager();;
+
+	private double absBearing;
+	private int direction;
+	private double firePower;
+	// middle of the field
 	private RobotSituation mySituation;
+
+	@Override
+	public void run() {
+		enemyEnergy = getEnergy();// surfer
+
+		initializeStuff();
+		decayAppereance();
+
+		do {
+
+			// Turn the radar if we have no more turn, starts it if it stops and
+			// at the start of round
+			surfNearestWave();
+
+			// doMove();
+			doFirePower();
+			doScanner(null);
+			// fire(firePower);
+			execute();
+//			out.println("size = " + movManager.sizeHistory());
+		} while (true);
+
+	}
 
 	private void initializeStuff() {
 
@@ -71,7 +80,6 @@ public class Damala extends AdvancedRobot {
 		enemyPos = new Point2D.Double();
 		waves_mov = new ArrayList<Wave>();
 		dir = 1;
-		STAT = new double[STATS_DIM];
 
 	}
 
@@ -84,31 +92,6 @@ public class Damala extends AdvancedRobot {
 		double sliceSize = 2.0 / (double) slices;
 		double sliceStart = index * sliceSize;
 		return (sliceStart + sliceSize / 2 - 1);// center of class
-
-	}
-
-	@Override
-	public void run() {
-		enemyEnergy = getEnergy();// surfer
-
-		initializeStuff();
-		decayAppereance();
-
-		do {
-
-			// Turn the radar if we have no more turn, starts it if it stops and
-			// at the start of round
-			updateWavesSurfer();
-			surfNearestWave();
-
-			// doMove();
-			doFirePower();
-			doScanner(null);
-			doGun();
-			// fire(firePower);
-			execute();
-			out.println("size = " + movManager.sizeHistory());
-		} while (true);
 
 	}
 
@@ -126,11 +109,8 @@ public class Damala extends AdvancedRobot {
 			}
 
 			// Update STAT
-			if (hitWave != null) {
+			if (hitWave != null)
 				movManager.addSituation(hitWave.getRelatedSituation(), hitWave.GF_UsedByEnemy());
-
-				out.println("AGGIUNTO e colpito ");
-			}
 
 		}
 
@@ -153,8 +133,7 @@ public class Damala extends AdvancedRobot {
 
 		// find the nearest wave
 		Wave nearestWave = waves_mov.get(0);
-		double absMinDistance = Math.abs(myPos.distance(waves_mov.get(0).getStartPoint())
-				- waves_mov.get(0).getDistanceTraveled(currTime));
+		double absMinDistance = Math.abs(myPos.distance(waves_mov.get(0).getStartPoint()) - waves_mov.get(0).getDistanceTraveled(currTime));
 		// it make one unusefull iteration
 		for (Wave wave : waves_mov) {
 			double absDistance = Math.abs(myPos.distance(wave.getStartPoint()) - wave.getDistanceTraveled(currTime));
@@ -164,11 +143,8 @@ public class Damala extends AdvancedRobot {
 			}
 		}
 
-		
-		double currentBearingRespectToWave = Math.atan2(myPos.x - nearestWave.getStartPoint().x,
-				myPos.y - nearestWave.getStartPoint().y);
+		double currentBearingRespectToWave = Math.atan2(myPos.x - nearestWave.getStartPoint().x, myPos.y - nearestWave.getStartPoint().y);
 
-		
 		if (movManager.sizeHistory() > Constants.KNN_NUM_NEIGHBORS) {
 			double GFPredicted = movManager.mostProbableGFEnemyFireTo(nearestWave.getRelatedSituation());
 			if (GFPredicted < 0) {
@@ -177,108 +153,12 @@ public class Damala extends AdvancedRobot {
 			} else if (GFPredicted > 0) {
 				dir = -1;
 			}
-			System.out.println("DIREZIONEEEEEEEEEEEEE "+GFPredicted);
 		}
-
-		
-		// predict the robot postition at the time the wave will hit him
-		// THIS NEED TESTING
-		// Should I use precise prediction???
-		// double tickUntilHit = absMinDistance /
-		// nearestWave.getBulletVelocity();
-		// double maxCoverDistanceBack = -tickUntilHit * Rules.MAX_VELOCITY / 2;
-		// double maxCoverDistanceFront = tickUntilHit * Rules.MAX_VELOCITY / 2;
-		//
-		// while (!fieldRect.contains(project(myPos, getHeading(),
-		// -maxCoverDistanceBack)))
-		// maxCoverDistanceBack++;
-		// while (!fieldRect.contains(project(myPos, getHeading(),
-		// maxCoverDistanceFront)))
-		// maxCoverDistanceFront--;
-		//
-		// Point2D.Double pointBackward = project(myPos, getHeading(),
-		// maxCoverDistanceBack);
-		// Point2D.Double pointForward = project(myPos, getHeading(),
-		// maxCoverDistanceFront);
-		//
-		// // move to the less dangerous position according to the STAT array
-		// if (STAT[getStatsIndex(nearestWave, pointBackward)] >
-		// STAT[getStatsIndex(nearestWave, pointForward)]) {
-		// dir = 1;
-		// } else if (STAT[getStatsIndex(nearestWave, pointBackward)] <
-		// STAT[getStatsIndex(nearestWave, pointForward)]) {
-		// dir = -1;
-		// }
-
-		// compute the orbit angle to surf the wave
-
-		// angle between the wave origin and my current position
-
 
 		orbitAngle = Math.toDegrees(currentBearingRespectToWave);
 		orbitAngle = wallSmoothing(myPos, orbitAngle + (90) * dir, dir);
 
 		setBackAsFront(this, orbitAngle);
-
-		// orbitAngle = getHeading() -
-		// Math.toDegrees(currentBearingRespectToWave) - 90;
-		//
-		// orbitAngle = Utils.normalRelativeAngleDegrees(orbitAngle);
-		//
-		// // if I go against a wall I change my direction
-		// // Should I use wallSmoothing???
-		// Point2D.Double nextPoint2 = project(myPos, getHeading(), WALL_STICK *
-		// dir);
-		// if (!fieldRect.contains(nextPoint2)) {
-		// dir = dir * -1;
-		// }
-		//
-		// setTurnLeft(orbitAngle);
-		// setAhead(10 * dir);
-		//
-		// // drawing debug stuff
-		//
-		// getGraphics().setColor(new Color(0.0f, 0.0f, 1.0f, 0.5f));
-
-		// drawing maximum escape angle
-		double maxEscapeAngle = Math.asin(Rules.MAX_VELOCITY / nearestWave.getBulletVelocity());
-		maxEscapeAngle = Math.toDegrees(maxEscapeAngle);
-		Point2D.Double tmp = project(nearestWave.getMyPosAtFireTime(),
-				-maxEscapeAngle / 2 + nearestWave.getStartAbsBearing(),
-				nearestWave.getMyPosAtFireTime().distance(nearestWave.getStartPoint()));
-		Point2D.Double tmp1 = project(nearestWave.getMyPosAtFireTime(),
-				maxEscapeAngle / 2 + nearestWave.getStartAbsBearing(),
-				nearestWave.getMyPosAtFireTime().distance(nearestWave.getStartPoint()));
-		int px1[] = { (int) nearestWave.getStartPoint().x, (int) tmp1.x, (int) tmp.x };
-		int py1[] = { (int) nearestWave.getStartPoint().y, (int) tmp1.y, (int) tmp.y };
-		getGraphics().fillPolygon(px1, py1, 3);
-
-		getGraphics().setColor(new Color(0.0f, 1.0f, 0.0f, 0.5f));
-
-		Point2D.Double stat = new Point2D.Double();
-
-		for (int i = 0; i < STATS_DIM; i++) {
-			getGraphics().setColor(new Color((float) (1 / (STAT[i] + 1)), 0, 1 - (float) (1 / (STAT[i] + 1)), 0.5f));
-			stat = project(nearestWave.getStartPoint(), -maxEscapeAngle / 2 + nearestWave.getStartAbsBearing() + i
-					* (maxEscapeAngle / STATS_DIM), nearestWave.getDistanceTraveled(currTime));
-			getGraphics().fillRect((int) stat.x, (int) stat.y, 4, 4);
-		}
-
-	}
-
-	// update waves position and delete unusefull waves
-	public void updateWavesSurfer() {
-		// myPos = new Point2D.Double(getX(), getY());
-		// for (int i = 0; i < waves_mov.size(); i++) {
-		// Wave wave = waves_mov.get(i);
-		// wave.setDistanceTraveled((getTime() - wave.getFireTime())
-		// * wave.getBulletVelocity());
-		// if (wave.getDistanceTraveled() > myPos.distance(wave
-		// .getStartPoint()) + 50) {
-		// waves_mov.remove(i);
-		// i--;
-		// }
-		// }
 	}
 
 	@Override
@@ -296,12 +176,11 @@ public class Damala extends AdvancedRobot {
 		mySituation = new RobotSituation();
 		mySituation.setDistance(myPos.distance(enemyPos));
 		mySituation.setTime(getTime());
-		mySituation.setAdvancingVelocity(getVelocity() * -1
-				* Math.cos(getHeadingRadians() - (bearing + getHeadingRadians())));
+		mySituation.setAdvancingVelocity(getVelocity() * -1 * Math.cos(getHeadingRadians() - (bearing + getHeadingRadians())));
 		mySituation.setLateralVelocity(getVelocity() * Math.sin(getHeadingRadians() - (bearing + getHeadingRadians())));
 		mySituation.setPower(firePower);
 
-		mySituation.printRobotSituation();
+		// mySituation.printRobotSituation();
 
 		return mySituation;
 
@@ -343,11 +222,6 @@ public class Damala extends AdvancedRobot {
 
 	private void decayAppereance() {
 		setColors(Constants.bodyColor, Constants.gunColor, Constants.radarColor);
-
-	}
-
-	private void doGun() {
-
 	}
 
 	private void doFirePower() {
@@ -359,12 +233,6 @@ public class Damala extends AdvancedRobot {
 		if (firePower > 3) {
 			firePower = 3;
 		}
-
-	}
-
-	@Override
-	public void onBulletHit(BulletHitEvent event) {
-		// situationsKDTree = new KdTree<>(Constants.dimensions);
 
 	}
 
@@ -380,8 +248,7 @@ public class Damala extends AdvancedRobot {
 			Wave currentWave = (Wave) waves.get(i);
 			if (currentWave.checkHit(ex, ey, getTime())) {
 				currentWave.getRelatedSituation().setRightGessFsctor(currentWave.getRightGuessFactor());
-				situationsKDTree.addPoint(currentWave.getRelatedSituation().toKD_Key(),
-						fromGuessFactorToIndex(currentWave.getRightGuessFactor() + 1, Constants.numSliceGF));
+				situationsKDTree.addPoint(currentWave.getRelatedSituation().toKD_Key(), fromGuessFactorToIndex(currentWave.getRightGuessFactor() + 1, Constants.numSliceGF));
 
 				situations.add(currentWave.getRelatedSituation());
 				relatedClasses.add(fromGuessFactorToIndex(currentWave.getRightGuessFactor() + 1, Constants.numSliceGF));
@@ -391,7 +258,7 @@ public class Damala extends AdvancedRobot {
 			}
 		}
 
-		out.println("size tree " + situationsKDTree.size());
+		// out.println("size tree " + situationsKDTree.size());
 
 		RobotSituation newSituation = new RobotSituation();
 
@@ -399,10 +266,8 @@ public class Damala extends AdvancedRobot {
 		newSituation.setBulletFlightTime(e.getDistance() / RoboUtils.bulletVelocity(firePower));
 		newSituation.setTime(getTime());
 		newSituation.setVelocity(e.getVelocity());
-		newSituation.setAdvancingVelocity(e.getVelocity() * -1
-				* Math.cos(e.getHeadingRadians() - (e.getBearingRadians() + getHeadingRadians())));
-		newSituation.setLateralVelocity(e.getVelocity()
-				* Math.sin(e.getHeadingRadians() - (e.getBearingRadians() + getHeadingRadians())));
+		newSituation.setAdvancingVelocity(e.getVelocity() * -1 * Math.cos(e.getHeadingRadians() - (e.getBearingRadians() + getHeadingRadians())));
+		newSituation.setLateralVelocity(e.getVelocity() * Math.sin(e.getHeadingRadians() - (e.getBearingRadians() + getHeadingRadians())));
 		newSituation.setPower(firePower);
 		if (situations.size() > 0) {
 			double oldLatVel = situations.get(situations.size() - 1).getLateralVelocity();
@@ -410,16 +275,14 @@ public class Damala extends AdvancedRobot {
 			double deltaTime = getTime() - situations.get(situations.size() - 1).getTime();// currTime
 			// - old
 			// time
-			newSituation.setLateralAcceleration(Enemy.returnAcceleration(oldLatVel, newSituation.getLateralVelocity(),
-					deltaTime));
-			newSituation.setAdvancingAcceleration(Enemy.returnAcceleration(oldAdvVel,
-					newSituation.getAdvancingVelocity(), deltaTime));
+			newSituation.setLateralAcceleration(Enemy.returnAcceleration(oldLatVel, newSituation.getLateralVelocity(), deltaTime));
+			newSituation.setAdvancingAcceleration(Enemy.returnAcceleration(oldAdvVel, newSituation.getAdvancingVelocity(), deltaTime));
 		}
 
 		situations.add(newSituation);
 
-		newSituation.printRobotSituation();
-		out.println("no situations " + situations.size());
+		// newSituation.printRobotSituation();
+		// out.println("no situations " + situations.size());
 
 		if (e.getVelocity() != 0) {
 			if (Math.sin(e.getHeadingRadians() - absBearing) * e.getVelocity() < 0)
@@ -439,36 +302,33 @@ public class Damala extends AdvancedRobot {
 			// MaxHeap<Integer> maxHeap =
 			// situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(),
 			// 3,new SquareEuclideanDistanceFunction());
-			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(),
-					Constants.KNN_NUM_NEIGHBORS, new WeightedSquareEuclideanDistance(Constants.dimensions,
-							Constants.weights));
+			MaxHeap<Integer> maxHeap = situationsKDTree.findNearestNeighbors(newSituation.toKD_Key(), Constants.KNN_NUM_NEIGHBORS, new WeightedSquareEuclideanDistance(Constants.dimensions, Constants.weights));
 
 			// prenditi tutti i guessFactors -> trasformali in fireingAngles
 			// corrispondenti
 			// applica un kernel density estimator per calcolare il bestFiring
 			// angle
 			guessfactor = fromIndexToGuessFactor(maxHeap.getMax(), Constants.numSliceGF);
-			out.println("MAX HEAP ->" + maxHeap.getMax());
+			// out.println("MAX HEAP ->" + maxHeap.getMax());
 
 			int cont = 0;
 			while (maxHeap.size() > 0) {
 				GF[cont] = fromIndexToGuessFactor(maxHeap.getMax(), Constants.numSliceGF);
 				firingAngles[cont] = fromGuessFactorToFiringAngle(GF[cont], firePower);
 				maxHeap.removeMax();
-				out.println("gf " + GF[cont]);
+				// out.println("gf " + GF[cont]);
 				cont++;
 			}
 		}
 
 		double bestFiringAngle = getBestFiringAngle(firingAngles, Constants.KNN_NUM_NEIGHBORS, best.getDistance());
 
-		// double gunAdjust = fromGuessFactorToFiringAngle(guessfactor,
-		// firePower);
 		double gunAdjust = bestFiringAngle;
-		out.println(" BEST " + bestFiringAngle + " NORMAL " + gunAdjust);
+		// out.println(" BEST " + bestFiringAngle + " NORMAL " + gunAdjust);
 
 		setTurnGunRightRadians(gunAdjust);
-		out.println(" " + direction + "," + guessfactor + "," + RoboUtils.getMaxEscapeAngle(firePower));
+		// out.println(" " + direction + "," + guessfactor + "," +
+		// RoboUtils.getMaxEscapeAngle(firePower));
 
 		waves.add(newWave);
 		if (getGunHeat() == 0 && gunAdjust < Math.atan2(9, e.getDistance()))

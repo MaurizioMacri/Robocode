@@ -17,32 +17,15 @@ class Enemy {
 		return energy;
 	}
 
-
-
-
-
-
-
 	public void setEnergy(double energy) {
 		this.energy = energy;
 	}
-
-
-
-
-
-
 
 	//Given velocity, initial velocity and time calculate the acceleration.
 	//a = (v - v0)/t
 	public static double returnAcceleration(double oldVelocity, double currVelocity, double deltaTime){
 		return (currVelocity-oldVelocity)/deltaTime;
 	}
-	
-	
-	
-
-	
 	
 
 	public String getName() {

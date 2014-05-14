@@ -1,38 +1,28 @@
 package surfing;
 
-import java.util.Hashtable;
-
-import dalama.Constants;
-import dalama.WeightedSquareEuclideanDistance;
-
 import kdtree.DistanceFunction;
 import kdtree.KdTree;
 import kdtree.MaxHeap;
 import kdtree.SquareEuclideanDistanceFunction;
-
 import ulils.RobotSituation;
-import ulils.Wave;
+import dalama.Constants;
 
 public class MovementsManager {
 
 	private static KdTree<Double> history;
 
-	private  DistanceFunction distanceFunction;
-
+	private DistanceFunction distanceFunction;
 
 	public MovementsManager() {
 		history = new KdTree<Double>(Constants.dimensions);
 		distanceFunction = new SquareEuclideanDistanceFunction();
 	}
 
-
-	public void addSituation(RobotSituation newSituation,double GF){
+	public void addSituation(RobotSituation newSituation, double GF) {
 		history.addPoint(newSituation.toKD_Key(), GF);
-		System.out.println("\n\n\n\n\n\n\n\n\n GFFFADDDDDEDDDD " + GF);
 	}
 
-
-	public Double mostProbableGFEnemyFireTo(RobotSituation currSituation){
+	public Double mostProbableGFEnemyFireTo(RobotSituation currSituation) {
 		MaxHeap<Double> kNeighs = history.findNearestNeighbors(currSituation.toKD_Key(), Constants.KNN_NUM_NEIGHBORS, distanceFunction);
 
 		double[] GF = new double[Constants.KNN_NUM_NEIGHBORS];
@@ -52,9 +42,10 @@ public class MovementsManager {
 			for (int j = 0; j < Constants.KNN_NUM_NEIGHBORS; j++) {
 				if (i != j) {
 					double currGF_j = GF[j];
-					double ux = (currGF_i - currGF_j) / 2;//due perchè range GF
-					//					if (Math.abs(ux) <= 1)//uniform
-					//						density++;
+					double ux = (currGF_i - currGF_j) / 2;// due perchè range
+															// GF
+					// if (Math.abs(ux) <= 1)//uniform
+					// density++;
 					// gaussian
 					density = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * Math.pow(ux, 2));
 				}
@@ -66,21 +57,10 @@ public class MovementsManager {
 		}
 		return bestGF;
 
-
-
 	}
 
-
-	public  int sizeHistory(){
-		return history.size(); 
+	public int sizeHistory() {
+		return history.size();
 	}
-
 
 }
-
-
-
-
-
-
-
